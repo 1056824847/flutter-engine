@@ -33,7 +33,7 @@ TEST(FlRendererTest, BackgroundColor) {
       .struct_size = sizeof(FlutterBackingStoreConfig),
       .size = {.width = 1024, .height = 1024}};
   FlutterBackingStore backing_store;
-  fl_renderer_create_backing_store(FL_RENDERER(renderer), &config,
+  fl_renderer_create_backing_store(FL_RENDERER(renderer), kOpenGL, &config,
                                    &backing_store);
   const FlutterLayer layer0 = {.struct_size = sizeof(FlutterLayer),
                                .type = kFlutterLayerContentTypeBackingStore,
@@ -130,7 +130,7 @@ TEST(FlRendererTest, BlitFramebuffer) {
       .struct_size = sizeof(FlutterBackingStoreConfig),
       .size = {.width = 1024, .height = 1024}};
   FlutterBackingStore backing_store;
-  fl_renderer_create_backing_store(FL_RENDERER(renderer), &config,
+  fl_renderer_create_backing_store(FL_RENDERER(renderer), kOpenGL, &config,
                                    &backing_store);
   const FlutterLayer layer0 = {.struct_size = sizeof(FlutterLayer),
                                .type = kFlutterLayerContentTypeBackingStore,
@@ -173,7 +173,7 @@ TEST(FlRendererTest, BlitFramebufferExtension) {
       .struct_size = sizeof(FlutterBackingStoreConfig),
       .size = {.width = 1024, .height = 1024}};
   FlutterBackingStore backing_store;
-  fl_renderer_create_backing_store(FL_RENDERER(renderer), &config,
+  fl_renderer_create_backing_store(FL_RENDERER(renderer), kOpenGL, &config,
                                    &backing_store);
   const FlutterLayer layer0 = {.struct_size = sizeof(FlutterLayer),
                                .type = kFlutterLayerContentTypeBackingStore,
@@ -209,7 +209,7 @@ TEST(FlRendererTest, NoBlitFramebuffer) {
       .struct_size = sizeof(FlutterBackingStoreConfig),
       .size = {.width = 1024, .height = 1024}};
   FlutterBackingStore backing_store;
-  fl_renderer_create_backing_store(FL_RENDERER(renderer), &config,
+  fl_renderer_create_backing_store(FL_RENDERER(renderer), kOpenGL, &config,
                                    &backing_store);
   const FlutterLayer layer0 = {.struct_size = sizeof(FlutterLayer),
                                .type = kFlutterLayerContentTypeBackingStore,
@@ -246,7 +246,7 @@ TEST(FlRendererTest, BlitFramebufferNvidia) {
       .struct_size = sizeof(FlutterBackingStoreConfig),
       .size = {.width = 1024, .height = 1024}};
   FlutterBackingStore backing_store;
-  fl_renderer_create_backing_store(FL_RENDERER(renderer), &config,
+  fl_renderer_create_backing_store(FL_RENDERER(renderer), kOpenGL, &config,
                                    &backing_store);
   const FlutterLayer layer0 = {.struct_size = sizeof(FlutterLayer),
                                .type = kFlutterLayerContentTypeBackingStore,
@@ -292,7 +292,7 @@ TEST(FlRendererTest, MultiView) {
       .struct_size = sizeof(FlutterBackingStoreConfig),
       .size = {.width = 1024, .height = 1024}};
   FlutterBackingStore backing_store;
-  fl_renderer_create_backing_store(FL_RENDERER(renderer), &config,
+  fl_renderer_create_backing_store(FL_RENDERER(renderer), kOpenGL, &config,
                                    &backing_store);
   const FlutterLayer layer0 = {.struct_size = sizeof(FlutterLayer),
                                .type = kFlutterLayerContentTypeBackingStore,
