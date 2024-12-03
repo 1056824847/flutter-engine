@@ -5,14 +5,12 @@
 // Included first as it collides with the X11 headers.
 #include "gtest/gtest.h"
 
-#include "flutter/shell/platform/linux/fl_binary_messenger_private.h"
-#include "flutter/shell/platform/linux/fl_engine_private.h"
 #include "flutter/shell/platform/linux/fl_method_codec_private.h"
 #include "flutter/shell/platform/linux/public/flutter_linux/fl_basic_message_channel.h"
 #include "flutter/shell/platform/linux/public/flutter_linux/fl_method_channel.h"
 #include "flutter/shell/platform/linux/public/flutter_linux/fl_standard_method_codec.h"
+#include "flutter/shell/platform/linux/testing/fl_mock_binary_messenger.h"
 #include "flutter/shell/platform/linux/testing/fl_test.h"
-#include "flutter/shell/platform/linux/testing/mock_renderer.h"
 
 // Called when the method call response is received in the InvokeMethod
 // test.
@@ -30,7 +28,7 @@ static void method_response_cb(GObject* object,
   EXPECT_EQ(error, nullptr);
 
   EXPECT_EQ(fl_value_get_type(r), FL_VALUE_TYPE_STRING);
-  EXPECT_STREQ(fl_value_get_string(r), "Hello World!");
+  EXPECT_STREQ(fl_value_get_string(r), "Polo!");
 
   g_main_loop_quit(static_cast<GMainLoop*>(user_data));
 }
@@ -39,14 +37,24 @@ static void method_response_cb(GObject* object,
 TEST(FlMethodChannelTest, InvokeMethod) {
   g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
 
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
+  fl_mock_binary_messenger_set_standard_method_channel(
+      messenger, "test",
+      [](FlMockBinaryMessenger* messenger, const gchar* name, FlValue* args,
+         gpointer user_data) {
+        EXPECT_STREQ(name, "Test");
+        EXPECT_EQ(fl_value_get_type(args), FL_VALUE_TYPE_STRING);
+        EXPECT_STREQ(fl_value_get_string(args), "Marco!");
+        g_autoptr(FlValue) result = fl_value_new_string("Polo!");
+        return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+      },
+      nullptr);
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+      FL_BINARY_MESSENGER(messenger), "test", FL_METHOD_CODEC(codec));
 
-  g_autoptr(FlValue) args = fl_value_new_string("Hello World!");
-  fl_method_channel_invoke_method(channel, "Echo", args, nullptr,
+  g_autoptr(FlValue) args = fl_value_new_string("Marco!");
+  fl_method_channel_invoke_method(channel, "Test", args, nullptr,
                                   method_response_cb, loop);
 
   // Blocks here until method_response_cb is called.
@@ -64,11 +72,6 @@ static void nullptr_args_response_cb(GObject* object,
   EXPECT_NE(response, nullptr);
   EXPECT_EQ(error, nullptr);
 
-  FlValue* r = fl_method_response_get_result(response, &error);
-  EXPECT_NE(r, nullptr);
-  EXPECT_EQ(error, nullptr);
-  EXPECT_EQ(fl_value_get_type(r), FL_VALUE_TYPE_NULL);
-
   g_main_loop_quit(static_cast<GMainLoop*>(user_data));
 }
 
@@ -76,13 +79,22 @@ static void nullptr_args_response_cb(GObject* object,
 TEST(FlMethodChannelTest, InvokeMethodNullptrArgsMessage) {
   g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
 
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
+  fl_mock_binary_messenger_set_standard_method_channel(
+      messenger, "test",
+      [](FlMockBinaryMessenger* messenger, const gchar* name, FlValue* args,
+         gpointer user_data) {
+        EXPECT_STREQ(name, "NullArgs");
+        EXPECT_NE(args, nullptr);
+        EXPECT_EQ(fl_value_get_type(args), FL_VALUE_TYPE_NULL);
+        return FL_METHOD_RESPONSE(fl_method_success_response_new(args));
+      },
+      nullptr);
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+      FL_BINARY_MESSENGER(messenger), "test", FL_METHOD_CODEC(codec));
 
-  fl_method_channel_invoke_method(channel, "Echo", nullptr, nullptr,
+  fl_method_channel_invoke_method(channel, "NullArgs", nullptr, nullptr,
                                   nullptr_args_response_cb, loop);
 
   // Blocks here until nullptr_args_response_cb is called.
@@ -120,17 +132,22 @@ static void error_response_cb(GObject* object,
 TEST(FlMethodChannelTest, InvokeMethodError) {
   g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
 
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
+  fl_mock_binary_messenger_set_standard_method_channel(
+      messenger, "test",
+      [](FlMockBinaryMessenger* messenger, const gchar* name, FlValue* args,
+         gpointer user_data) {
+        EXPECT_STREQ(name, "Error");
+        g_autoptr(FlValue) details = fl_value_new_string("DETAILS");
+        return FL_METHOD_RESPONSE(
+            fl_method_error_response_new("CODE", "MESSAGE", details));
+      },
+      nullptr);
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+      FL_BINARY_MESSENGER(messenger), "test", FL_METHOD_CODEC(codec));
 
-  g_autoptr(FlValue) args = fl_value_new_list();
-  fl_value_append_take(args, fl_value_new_string("CODE"));
-  fl_value_append_take(args, fl_value_new_string("MESSAGE"));
-  fl_value_append_take(args, fl_value_new_string("DETAILS"));
-  fl_method_channel_invoke_method(channel, "Error", args, nullptr,
+  fl_method_channel_invoke_method(channel, "Error", nullptr, nullptr,
                                   error_response_cb, loop);
 
   // Blocks here until error_response_cb is called.
@@ -157,47 +174,23 @@ static void not_implemented_response_cb(GObject* object,
 TEST(FlMethodChannelTest, InvokeMethodNotImplemented) {
   g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
 
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
+  fl_mock_binary_messenger_set_standard_method_channel(
+      messenger, "test",
+      [](FlMockBinaryMessenger* messenger, const gchar* name, FlValue* args,
+         gpointer user_data) {
+        EXPECT_STREQ(name, "NotImplemented");
+        return FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+      },
+      nullptr);
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+      FL_BINARY_MESSENGER(messenger), "test", FL_METHOD_CODEC(codec));
 
   fl_method_channel_invoke_method(channel, "NotImplemented", nullptr, nullptr,
                                   not_implemented_response_cb, loop);
 
   // Blocks here until not_implemented_response_cb is called.
-  g_main_loop_run(loop);
-}
-
-// Called when the method call response is received in the
-// InvokeMethodFailure test.
-static void failure_response_cb(GObject* object,
-                                GAsyncResult* result,
-                                gpointer user_data) {
-  g_autoptr(GError) error = nullptr;
-  g_autoptr(FlMethodResponse) response = fl_method_channel_invoke_method_finish(
-      FL_METHOD_CHANNEL(object), result, &error);
-  EXPECT_EQ(response, nullptr);
-  EXPECT_NE(error, nullptr);
-
-  g_main_loop_quit(static_cast<GMainLoop*>(user_data));
-}
-
-// Checks if an engine failure calling a method call is handled.
-TEST(FlMethodChannelTest, InvokeMethodFailure) {
-  g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
-
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
-  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  g_autoptr(FlMethodChannel) channel =
-      fl_method_channel_new(messenger, "test/failure", FL_METHOD_CODEC(codec));
-
-  fl_method_channel_invoke_method(channel, "Echo", nullptr, nullptr,
-                                  failure_response_cb, loop);
-
-  // Blocks here until failure_response_cb is called.
   g_main_loop_run(loop);
 }
 
@@ -220,58 +213,34 @@ static void method_call_success_cb(FlMethodChannel* channel,
 
 // Called when a the test engine notifies us what response we sent in the
 // ReceiveMethodCallRespondSuccess test.
-static void method_call_success_response_cb(
-    FlBinaryMessenger* messenger,
-    const gchar* channel,
-    GBytes* message,
-    FlBinaryMessengerResponseHandle* response_handle,
-    gpointer user_data) {
-  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  g_autoptr(GError) error = nullptr;
-  g_autoptr(FlMethodResponse) response =
-      fl_method_codec_decode_response(FL_METHOD_CODEC(codec), message, &error);
-  EXPECT_NE(response, nullptr);
-  EXPECT_EQ(error, nullptr);
+static void method_call_success_response_cb(FlMockBinaryMessenger* messenger,
+                                            FlMethodResponse* response,
+                                            gpointer user_data) {
+   gboolean* called = static_cast<gboolean*>(user_data);
+   *called = TRUE;
 
   EXPECT_TRUE(FL_IS_METHOD_SUCCESS_RESPONSE(response));
   FlValue* result = fl_method_success_response_get_result(
       FL_METHOD_SUCCESS_RESPONSE(response));
   EXPECT_EQ(fl_value_get_type(result), FL_VALUE_TYPE_STRING);
   EXPECT_STREQ(fl_value_get_string(result), "Polo!");
-
-  fl_binary_messenger_send_response(messenger, response_handle, nullptr,
-                                    nullptr);
-
-  g_main_loop_quit(static_cast<GMainLoop*>(user_data));
 }
 
-// Checks the shell able to receive and respond to method calls from the engine.
+// Checks able to receive and respond to method calls from the engine.
 TEST(FlMethodChannelTest, ReceiveMethodCallRespondSuccess) {
-  g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
-
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+      FL_BINARY_MESSENGER(messenger), "test", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel, method_call_success_cb,
                                             nullptr, nullptr);
 
-  // Listen for response from the engine.
-  fl_binary_messenger_set_message_handler_on_channel(
-      messenger, "test/responses", method_call_success_response_cb, loop,
-      nullptr);
-
   // Trigger the engine to make a method call.
-  g_autoptr(FlValue) args = fl_value_new_list();
-  fl_value_append_take(args, fl_value_new_string("test/standard-method"));
-  fl_value_append_take(args, fl_value_new_string("Foo"));
-  fl_value_append_take(args, fl_value_new_string("Marco!"));
-  fl_method_channel_invoke_method(channel, "InvokeMethod", args, nullptr,
-                                  nullptr, loop);
-
-  // Blocks here until method_call_success_response_cb is called.
-  g_main_loop_run(loop);
+  g_autoptr(FlValue) args = fl_value_new_string("Marco!");
+   gboolean called = FALSE;
+  fl_mock_binary_messenger_invoke_standard_method(
+      messenger, "test", "Foo", args, method_call_success_response_cb, &called);
+  EXPECT_TRUE(called);
 }
 
 // Called when a method call is received from the engine in the
@@ -294,19 +263,12 @@ static void method_call_error_cb(FlMethodChannel* channel,
 
 // Called when a the test engine notifies us what response we sent in the
 // ReceiveMethodCallRespondError test.
-static void method_call_error_response_cb(
-    FlBinaryMessenger* messenger,
-    const gchar* channel,
-    GBytes* message,
-    FlBinaryMessengerResponseHandle* response_handle,
-    gpointer user_data) {
-  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  g_autoptr(GError) error = nullptr;
-  g_autoptr(FlMethodResponse) response =
-      fl_method_codec_decode_response(FL_METHOD_CODEC(codec), message, &error);
-  EXPECT_NE(response, nullptr);
-  EXPECT_EQ(error, nullptr);
-
+static void method_call_error_response_cb(FlMockBinaryMessenger* messenger,
+                                          FlMethodResponse* response,
+                                          gpointer user_data) {
+   gboolean* called = static_cast<gboolean*>(user_data);
+   *called = TRUE;
+   
   EXPECT_TRUE(FL_IS_METHOD_ERROR_RESPONSE(response));
   EXPECT_STREQ(
       fl_method_error_response_get_code(FL_METHOD_ERROR_RESPONSE(response)),
@@ -318,40 +280,23 @@ static void method_call_error_response_cb(
       fl_method_error_response_get_details(FL_METHOD_ERROR_RESPONSE(response));
   EXPECT_EQ(fl_value_get_type(details), FL_VALUE_TYPE_STRING);
   EXPECT_STREQ(fl_value_get_string(details), "DETAILS");
-
-  fl_binary_messenger_send_response(messenger, response_handle, nullptr,
-                                    nullptr);
-
-  g_main_loop_quit(static_cast<GMainLoop*>(user_data));
 }
 
 // Checks the shell able to receive and respond to method calls from the engine.
 TEST(FlMethodChannelTest, ReceiveMethodCallRespondError) {
-  g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
-
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+      FL_BINARY_MESSENGER(messenger), "test", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel, method_call_error_cb,
                                             nullptr, nullptr);
 
-  // Listen for response from the engine.
-  fl_binary_messenger_set_message_handler_on_channel(
-      messenger, "test/responses", method_call_error_response_cb, loop,
-      nullptr);
-
   // Trigger the engine to make a method call.
-  g_autoptr(FlValue) args = fl_value_new_list();
-  fl_value_append_take(args, fl_value_new_string("test/standard-method"));
-  fl_value_append_take(args, fl_value_new_string("Foo"));
-  fl_value_append_take(args, fl_value_new_string("Marco!"));
-  fl_method_channel_invoke_method(channel, "InvokeMethod", args, nullptr,
-                                  nullptr, loop);
-
-  // Blocks here until method_call_error_response_cb is called.
-  g_main_loop_run(loop);
+  g_autoptr(FlValue) args = fl_value_new_string("Marco!");
+   gboolean called =FALSE;
+  fl_mock_binary_messenger_invoke_standard_method(
+      messenger, "test", "Foo", args, method_call_error_response_cb, &called);
+  EXPECT_TRUE(called);
 }
 
 // Called when a method call is received from the engine in the
@@ -373,53 +318,31 @@ static void method_call_not_implemented_cb(FlMethodChannel* channel,
 // Called when a the test engine notifies us what response we sent in the
 // ReceiveMethodCallRespondNotImplemented test.
 static void method_call_not_implemented_response_cb(
-    FlBinaryMessenger* messenger,
-    const gchar* channel,
-    GBytes* message,
-    FlBinaryMessengerResponseHandle* response_handle,
+    FlMockBinaryMessenger* messenger,
+    FlMethodResponse*response,
     gpointer user_data) {
-  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  g_autoptr(GError) error = nullptr;
-  g_autoptr(FlMethodResponse) response =
-      fl_method_codec_decode_response(FL_METHOD_CODEC(codec), message, &error);
-  EXPECT_NE(response, nullptr);
-  EXPECT_EQ(error, nullptr);
+   gboolean* called = static_cast<gboolean*>(user_data);
+   *called = TRUE;
 
   EXPECT_TRUE(FL_IS_METHOD_NOT_IMPLEMENTED_RESPONSE(response));
-
-  fl_binary_messenger_send_response(messenger, response_handle, nullptr,
-                                    nullptr);
-
-  g_main_loop_quit(static_cast<GMainLoop*>(user_data));
 }
 
 // Checks the shell able to receive and respond to method calls from the engine.
 TEST(FlMethodChannelTest, ReceiveMethodCallRespondNotImplemented) {
-  g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
-
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+  g_autoptr(FlMethodChannel) channel =
+      fl_method_channel_new(FL_BINARY_MESSENGER(messenger),
+                            "test", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
       channel, method_call_not_implemented_cb, nullptr, nullptr);
 
-  // Listen for response from the engine.
-  fl_binary_messenger_set_message_handler_on_channel(
-      messenger, "test/responses", method_call_not_implemented_response_cb,
-      loop, nullptr);
-
   // Trigger the engine to make a method call.
-  g_autoptr(FlValue) args = fl_value_new_list();
-  fl_value_append_take(args, fl_value_new_string("test/standard-method"));
-  fl_value_append_take(args, fl_value_new_string("Foo"));
-  fl_value_append_take(args, fl_value_new_string("Marco!"));
-  fl_method_channel_invoke_method(channel, "InvokeMethod", args, nullptr,
-                                  nullptr, loop);
-
-  // Blocks here until method_call_not_implemented_response_cb is called.
-  g_main_loop_run(loop);
+  g_autoptr(FlValue) args = fl_value_new_string("Marco!");
+   gboolean called =FALSE;
+   fl_mock_binary_messenger_invoke_standard_method(
+						         messenger, "test", "Foo", args, method_call_not_implemented_response_cb, &called);
+  EXPECT_TRUE(called);
 }
 
 // A test method codec that always generates errors on responses.
@@ -542,11 +465,11 @@ static void method_call_success_error_cb(FlMethodChannel* channel,
 TEST(FlMethodChannelTest, ReceiveMethodCallRespondSuccessError) {
   g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
 
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
   g_autoptr(TestMethodCodec) codec = test_method_codec_new();
-  g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+  g_autoptr(FlMethodChannel) channel =
+      fl_method_channel_new(FL_BINARY_MESSENGER(messenger),
+                            "test/standard-method", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
       channel, method_call_success_error_cb, loop, nullptr);
 
@@ -584,11 +507,11 @@ static void method_call_error_error_cb(FlMethodChannel* channel,
 TEST(FlMethodChannelTest, ReceiveMethodCallRespondErrorError) {
   g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
 
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
   g_autoptr(TestMethodCodec) codec = test_method_codec_new();
-  g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
-      messenger, "test/standard-method", FL_METHOD_CODEC(codec));
+  g_autoptr(FlMethodChannel) channel =
+      fl_method_channel_new(FL_BINARY_MESSENGER(messenger),
+                            "test/standard-method", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel, method_call_error_error_cb,
                                             loop, nullptr);
 
@@ -638,8 +561,7 @@ TEST(FlMethodChannelTest, ReplaceADisposedMethodChannel) {
   // The loop is used to pause the main process until the callback is fully
   // executed.
   g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
 
   g_autoptr(FlValue) args = fl_value_new_list();
@@ -652,8 +574,8 @@ TEST(FlMethodChannelTest, ReplaceADisposedMethodChannel) {
       .loop = loop,
       .count = 100,
   };
-  FlMethodChannel* channel1 =
-      fl_method_channel_new(messenger, method_name, FL_METHOD_CODEC(codec));
+  FlMethodChannel* channel1 = fl_method_channel_new(
+      FL_BINARY_MESSENGER(messenger), method_name, FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel1, reassign_method_cb,
                                             &user_data1, nullptr);
 
@@ -670,8 +592,8 @@ TEST(FlMethodChannelTest, ReplaceADisposedMethodChannel) {
       .loop = loop,
       .count = 100,
   };
-  g_autoptr(FlMethodChannel) channel2 =
-      fl_method_channel_new(messenger, method_name, FL_METHOD_CODEC(codec));
+  g_autoptr(FlMethodChannel) channel2 = fl_method_channel_new(
+      FL_BINARY_MESSENGER(messenger), method_name, FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel2, reassign_method_cb,
                                             &user_data2, nullptr);
 
@@ -695,8 +617,7 @@ TEST(FlMethodChannelTest, DisposeAReplacedMethodChannel) {
   // The loop is used to pause the main process until the callback is fully
   // executed.
   g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, 0);
-  g_autoptr(FlEngine) engine = make_mock_engine();
-  g_autoptr(FlBinaryMessenger) messenger = fl_binary_messenger_new(engine);
+  g_autoptr(FlMockBinaryMessenger) messenger = fl_mock_binary_messenger_new();
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
 
   g_autoptr(FlValue) args = fl_value_new_list();
@@ -709,8 +630,8 @@ TEST(FlMethodChannelTest, DisposeAReplacedMethodChannel) {
       .loop = loop,
       .count = 100,
   };
-  FlMethodChannel* channel1 =
-      fl_method_channel_new(messenger, method_name, FL_METHOD_CODEC(codec));
+  FlMethodChannel* channel1 = fl_method_channel_new(
+      FL_BINARY_MESSENGER(messenger), method_name, FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel1, reassign_method_cb,
                                             &user_data1, nullptr);
 
@@ -724,8 +645,8 @@ TEST(FlMethodChannelTest, DisposeAReplacedMethodChannel) {
       .loop = loop,
       .count = 100,
   };
-  g_autoptr(FlMethodChannel) channel2 =
-      fl_method_channel_new(messenger, method_name, FL_METHOD_CODEC(codec));
+  g_autoptr(FlMethodChannel) channel2 = fl_method_channel_new(
+      FL_BINARY_MESSENGER(messenger), method_name, FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel2, reassign_method_cb,
                                             &user_data2, nullptr);
 

@@ -268,12 +268,7 @@ FlutterEngineResult FlutterEngineSendPlatformMessage(
     EXPECT_EQ(error, nullptr);
 
     g_autoptr(GBytes) response = nullptr;
-    if (strcmp(name, "Echo") == 0) {
-      // Returns args as a success result.
-      response = fl_method_codec_encode_success_envelope(FL_METHOD_CODEC(codec),
-                                                         args, &error);
-      EXPECT_EQ(error, nullptr);
-    } else if (strcmp(name, "Error") == 0) {
+    if (strcmp(name, "Error") == 0) {
       // Returns an error result.
       const gchar* code = nullptr;
       const gchar* message = nullptr;
