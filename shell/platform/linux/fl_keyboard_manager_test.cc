@@ -8,7 +8,9 @@
 #include <vector>
 
 #include "flutter/shell/platform/embedder/test_utils/key_codes.g.h"
+#include "flutter/shell/platform/embedder/test_utils/proc_table_replacement.h"
 #include "flutter/shell/platform/linux/fl_binary_messenger_private.h"
+#include "flutter/shell/platform/linux/fl_engine_private.h"
 #include "flutter/shell/platform/linux/fl_method_codec_private.h"
 #include "flutter/shell/platform/linux/key_mapping.h"
 #include "flutter/shell/platform/linux/public/flutter_linux/fl_json_message_codec.h"
@@ -342,21 +344,21 @@ class KeyboardTester {
 
     engine_ = FL_ENGINE(g_object_new(fl_engine_get_type(), "binary-messenger",
                                      FL_BINARY_MESSENGER(messenger_), nullptr));
+    FlutterEngineProcTable* embedder_api = fl_engine_get_embedder_api(engine_);
+    embedder_api->SendKeyEvent = MOCK_ENGINE_PROC(
+        SendKeyEvent,
+        ([this](auto engine, const FlutterKeyEvent* event,
+                FlutterKeyEventCallback callback, void* user_data) {
+          g_printerr("SendKeyEvent\n");
+          embedder_handler_(event, [callback, user_data](bool handled) {
+            if (callback != nullptr) {
+              callback(handled, user_data);
+            }
+          });
+          return kSuccess;
+        }));
     manager_ =
         fl_keyboard_manager_new(engine_, FL_KEYBOARD_VIEW_DELEGATE(view_));
-    fl_keyboard_manager_set_send_key_event_handler(
-        manager_,
-        [](const FlutterKeyEvent* event, FlutterKeyEventCallback callback,
-           void* callback_user_data, gpointer user_data) {
-          KeyboardTester* self = reinterpret_cast<KeyboardTester*>(user_data);
-          self->embedder_handler_(event,
-                                  [callback, callback_user_data](bool handled) {
-                                    if (callback != nullptr) {
-                                      callback(handled, callback_user_data);
-                                    }
-                                  });
-        },
-        this);
     fl_keyboard_manager_set_lookup_key_handler(
         manager_,
         [](const GdkKeymapKey* key, gpointer user_data) {
