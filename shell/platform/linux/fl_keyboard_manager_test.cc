@@ -532,7 +532,16 @@ TEST(FlKeyboardManagerTest, DisposeWithUnresolvedPends) {
   tester.recordEmbedderCallsTo(call_records);
   g_autoptr(FlKeyEvent) event1 = fl_key_event_new(
       0, TRUE, kKeyCodeKeyA, GDK_KEY_a, static_cast<GdkModifierType>(0), 0);
-  fl_keyboard_manager_handle_event(tester.manager(), event1);
+  g_autoptr(GMainLoop) loop1 = g_main_loop_new(nullptr, 0);
+  fl_keyboard_manager_handle_event(
+      tester.manager(), event1, nullptr,
+      [](GObject* object, GAsyncResult* result, gpointer user_data) {
+        EXPECT_TRUE(fl_keyboard_manager_handle_event_finish(
+            FL_KEYBOARD_MANAGER(object), result, nullptr));
+        g_main_loop_quit(static_cast<GMainLoop*>(user_data));
+      },
+      loop);
+  g_main_loop_run();
 
   tester.respondToEmbedderCallsWith(true);
   g_autoptr(FlKeyEvent) event2 = fl_key_event_new(
