@@ -32,7 +32,7 @@ TEST(FlSettingsHandlerTest, AlwaysUse24HourFormat) {
   gboolean called = FALSE;
   fl_mock_binary_messenger_set_json_message_channel(
       messenger, "flutter/settings",
-      [](FlMockBinaryMessenger* messenger, FlValue* message,
+      [](FlMockBinaryMessenger* messenger, GTask* task, FlValue* message,
          gpointer user_data) {
         gboolean* called = static_cast<gboolean*>(user_data);
         *called = TRUE;
@@ -53,7 +53,7 @@ TEST(FlSettingsHandlerTest, AlwaysUse24HourFormat) {
   called = FALSE;
   fl_mock_binary_messenger_set_json_message_channel(
       messenger, "flutter/settings",
-      [](FlMockBinaryMessenger* messenger, FlValue* message,
+      [](FlMockBinaryMessenger* messenger, GTask* task, FlValue* message,
          gpointer user_data) {
         gboolean* called = static_cast<gboolean*>(user_data);
         *called = TRUE;
@@ -91,7 +91,7 @@ TEST(FlSettingsHandlerTest, PlatformBrightness) {
   gboolean called = FALSE;
   fl_mock_binary_messenger_set_json_message_channel(
       messenger, "flutter/settings",
-      [](FlMockBinaryMessenger* messenger, FlValue* message,
+      [](FlMockBinaryMessenger* messenger, GTask* task, FlValue* message,
          gpointer user_data) {
         gboolean* called = static_cast<gboolean*>(user_data);
         *called = TRUE;
@@ -111,7 +111,7 @@ TEST(FlSettingsHandlerTest, PlatformBrightness) {
   called = FALSE;
   fl_mock_binary_messenger_set_json_message_channel(
       messenger, "flutter/settings",
-      [](FlMockBinaryMessenger* messenger, FlValue* message,
+      [](FlMockBinaryMessenger* messenger, GTask* task, FlValue* message,
          gpointer user_data) {
         gboolean* called = static_cast<gboolean*>(user_data);
         *called = TRUE;
@@ -148,7 +148,7 @@ TEST(FlSettingsHandlerTest, TextScaleFactor) {
   gboolean called = FALSE;
   fl_mock_binary_messenger_set_json_message_channel(
       messenger, "flutter/settings",
-      [](FlMockBinaryMessenger* messenger, FlValue* message,
+      [](FlMockBinaryMessenger* messenger, GTask* task, FlValue* message,
          gpointer user_data) {
         gboolean* called = static_cast<gboolean*>(user_data);
         *called = TRUE;
@@ -168,7 +168,7 @@ TEST(FlSettingsHandlerTest, TextScaleFactor) {
   called = FALSE;
   fl_mock_binary_messenger_set_json_message_channel(
       messenger, "flutter/settings",
-      [](FlMockBinaryMessenger* messenger, FlValue* message,
+      [](FlMockBinaryMessenger* messenger, GTask* task, FlValue* message,
          gpointer user_data) {
         gboolean* called = static_cast<gboolean*>(user_data);
         *called = TRUE;
