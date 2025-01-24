@@ -92,7 +92,7 @@ vars = {
   'download_android_deps': 'host_os == "mac" or (host_os == "linux" and host_cpu == "x64")',
 
   # Checkout Java dependencies only on platforms that do not have java installed on path.
-  'download_jdk': True,
+  'download_jdk': flase
 
   # Checkout Windows dependencies only if we are building on Windows.
   'download_windows_deps' : 'host_os == "win"',
@@ -728,17 +728,6 @@ deps = {
        }
      ],
      'condition': 'download_android_deps',
-     'dep_type': 'cipd',
-   },
-
-  'src/flutter/third_party/java/openjdk': {
-     'packages': [
-       {
-        'package': 'flutter/java/openjdk/${{platform}}',
-        'version': 'version:17'
-       }
-     ],
-     # Always download the JDK since java is required for running the formatter.
      'dep_type': 'cipd',
    },
 
